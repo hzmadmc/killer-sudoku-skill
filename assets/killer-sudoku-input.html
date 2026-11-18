@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Killer Sudoku 录入工具</title>
+<style>
+:root{
+  --bg:#f4f5f2;
+  --card:#ffffff;
+  --border:#e6e8e3;
+  --border-strong:#d8dcd4;
+  --ink:#22271f;
+  --muted:#8a9086;
+  --accent:#2f7d6d;
+  --accent-deep:#256657;
+  --accent-soft:#e8f2ee;
+  --accent-tint:rgba(47,125,109,.28);
+  --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','HarmonyOS Sans SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--ink);padding:20px 24px 32px;min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* --- 页头 --- */
+.page-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+.page-head h1{font-size:20px;font-weight:700;letter-spacing:.5px}
+.page-head .sub{font-size:12px;color:var(--muted)}
+.page-head .mark{width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block;margin-right:6px;transform:translateY(-1px)}
+
+/* --- 工具栏 --- */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
+.toolbar button,.toolbar label.btn{padding:6px 14px;border:1px solid var(--border);border-radius:9px;background:var(--card);cursor:pointer;font-size:13px;color:var(--ink);transition:background .15s,border-color .15s,color .15s;white-space:nowrap;font-family:inherit}
+.toolbar button:hover,.toolbar label.btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.toolbar button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.toolbar .sep{width:1px;height:22px;background:var(--border);margin:0 4px}
+
+/* --- 布局 --- */
+.main{display:flex;flex-direction:column;gap:14px}
+.main.side-by-side{flex-direction:row;flex-wrap:wrap}
+.main.side-by-side .image-section{flex:0 0 42%;min-width:360px}
+.main.side-by-side .grid-section{flex:1;min-width:560px}
+
+/* --- 卡片 --- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+.header-controls{display:flex;align-items:center;gap:8px;font-weight:400;font-size:12px;color:var(--muted)}
+.header-controls input[type=range]{width:100px;accent-color:var(--accent)}
+
+/* --- 图片区 --- */
+.image-container{max-height:420px;overflow:auto;background:#fafbf8;display:flex;justify-content:center;align-items:flex-start;position:relative}
+.image-container img{display:block;transition:width .15s}
+.image-placeholder{padding:64px 20px;color:var(--muted);text-align:center}
+.image-placeholder p{margin:4px 0;font-size:13px}
+
+/* --- 盘面工具条 --- */
+.grid-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.info-group{display:flex;gap:10px;align-items:center}
+.sum-display{display:inline-block;min-width:34px;padding:2px 10px;border:none;border-radius:8px;font-weight:700;font-size:15px;color:var(--accent-deep);text-align:center;background:var(--accent-soft);font-variant-numeric:tabular-nums}
+.btn-primary{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.btn-primary:hover{background:var(--accent-deep)!important;border-color:var(--accent-deep)!important}
+.btn-primary:disabled{background:#b9cdc7!important;border-color:#b9cdc7!important;color:#fff!important;cursor:not-allowed}
+.toolbar .grid-toolbar button{padding:5px 12px}
+.help-text{margin-left:auto;font-size:11px;color:var(--muted);line-height:1.5;text-align:right}
+
+/* --- 数独盘 --- */
+.grid-wrapper{display:flex;justify-content:center;padding:16px}
+.sudoku-grid{display:grid;grid-template-columns:repeat(9,1fr);width:504px;height:504px;background:#fff;border:2.5px solid #3a4438;border-radius:10px;user-select:none;box-shadow:0 2px 10px rgba(34,39,31,.06)}
+.cell{border:.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:24px;transition:background .08s}
+.cell.box-right{border-right:2.5px solid #3a4438}
+.cell.box-bottom{border-bottom:2.5px solid #3a4438}
+.cell:hover{background:#f0f5f2}
+.cell.selected{background:var(--accent-tint)!important}
+.cell.active{outline:2.5px solid var(--accent);outline-offset:-2.5px;z-index:5;border-radius:2px}
+.cage-sum{position:absolute;top:2px;left:4px;font-size:11px;font-weight:700;color:var(--ink);line-height:1;z-index:1;font-variant-numeric:tabular-nums}
+.given-number{font-size:25px;font-weight:700;color:#111;z-index:1}
+
+/* --- 笼子列表 --- */
+.cage-list-section{padding:10px 14px 12px;border-top:1px solid var(--border)}
+.cage-list-header{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--ink)}
+.cage-list{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto}
+.cage-item{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;background:#f7f8f5;border:1px solid transparent;font-size:12px;cursor:pointer;transition:background .1s,border-color .1s}
+.cage-item:hover{background:var(--accent-soft);border-color:var(--accent-soft)}
+.cage-color{width:12px;height:12px;border-radius:4px;flex-shrink:0;border:1px solid rgba(0,0,0,.12)}
+.cage-id{font-weight:700;color:var(--muted);min-width:28px;font-variant-numeric:tabular-nums}
+.cage-sum-lbl{font-weight:700;color:var(--accent-deep);min-width:52px;font-variant-numeric:tabular-nums}
+.cage-cells{color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cage-del{border:none;background:none;cursor:pointer;color:#c4554d;font-size:14px;padding:0 6px;border-radius:6px;line-height:1.6}
+.cage-del:hover{background:#fbeeed}
+.empty-hint{color:var(--muted);font-size:12px;padding:10px;text-align:center}
+
+/* --- 模式徽章 --- */
+.mode-badge{padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600}
+.mode-badge.cage{background:var(--accent-soft);color:var(--accent-deep)}
+.mode-badge.number{background:#f5efe2;color:#a3722a}
+
+/* --- 导出弹窗 --- */
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(34,39,31,.45);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(2px)}
+.modal-content{background:var(--card);border-radius:14px;width:620px;max-width:92vw;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(34,39,31,.18)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-header h2{font-size:15px;font-weight:700}
+.close-btn{border:none;background:none;font-size:16px;cursor:pointer;color:var(--muted);padding:4px 8px;border-radius:8px}
+.close-btn:hover{background:#f2f3ef;color:var(--ink)}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 8px}
+.modal-tabs .tab{padding:10px 20px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;font-family:inherit}
+.modal-tabs .tab.active{color:var(--accent-deep);border-bottom-color:var(--accent);font-weight:600}
+.modal-body{flex:1;overflow:auto;padding:14px}
+.modal-body textarea{width:100%;height:350px;font-family:'Consolas','Monaco',monospace;font-size:12px;border:1px solid var(--border);border-radius:10px;padding:10px;resize:vertical;color:var(--ink);background:#fafbf8}
+.modal-footer{padding:10px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.modal-footer .btn-primary{padding:7px 18px;border-radius:9px;border:1px solid var(--accent);cursor:pointer;font-size:13px;font-family:inherit}
+
+/* --- Toast --- */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(16px);background:#2b322a;color:#fff;padding:9px 22px;border-radius:10px;font-size:13px;opacity:0;transition:all .3s;z-index:200;box-shadow:0 6px 20px rgba(34,39,31,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* --- 滚动条 --- */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#cdd2c9;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#b7bdb2}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1><span class="mark"></span>杀手数独录入工具</h1>
+  <span class="sub">拖选格子建笼子 · 数据自动保存</span>
+</div>
+
+<div class="toolbar">
+  <label class="btn">导入图片 <input type="file" id="imgInput" accept="image/*" hidden></label>
+  <button id="layoutBtn">切换布局</button>
+  <div class="sep"></div>
+  <button id="modeCageBtn" class="active">笼子模式</button>
+  <button id="modeNumberBtn">数字模式</button>
+  <div class="sep"></div>
+  <button id="exportBtn">导出数据</button>
+  <button id="clearBtn">清空全部</button>
+</div>
+
+<div id="mainContent" class="main">
+  <!-- 图片 -->
+  <div class="image-section card">
+    <div class="card-header">
+      <span>参考图片</span>
+      <div class="header-controls">
+        <label>缩放 <input type="range" id="imgZoom" min="30" max="250" value="80"> <span id="zoomVal">80%</span></label>
+      </div>
+    </div>
+    <div class="image-container" id="imgContainer">
+      <div class="image-placeholder" id="imgPlaceholder">
+        <p>点击「导入图片」上传杀手数独截图</p>
+        <p>支持 PNG / JPG 等常见格式</p>
+      </div>
+      <img id="imgDisplay" style="display:none">
+    </div>
+  </div>
+
+  <!-- 盘面 -->
+  <div class="grid-section card">
+    <div class="card-header">
+      <span>数独盘</span>
+      <span id="modeIndicator" class="mode-badge cage">笼子模式</span>
+    </div>
+    <div class="grid-toolbar">
+      <div class="info-group">
+        <span>已选 <strong id="selCount">0</strong> 格</span>
+        <span>和值 <span id="sumDisplay" class="sum-display">—</span></span>
+        <button id="confirmCageBtn" class="btn-primary" disabled>创建笼子</button>
+        <button id="deleteCageBtn" disabled>删除笼子</button>
+      </div>
+      <div class="help-text">
+        鼠标拖选格子 · Ctrl+点击 多选<br>
+        双击 选中整笼 · 方向键+Shift 扩选<br>
+        数字键输和值 · Enter 确认 · Esc 取消
+      </div>
+    </div>
+    <div class="grid-wrapper">
+      <div class="sudoku-grid" id="sudokuGrid"></div>
+    </div>
+    <div class="cage-list-section">
+      <div class="cage-list-header">已定义笼子（<span id="cageCount">0</span>）</div>
+      <div id="cageList" class="cage-list">
+        <div class="empty-hint">尚无笼子 — 选择格子并输入和值后按 Enter 创建</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 导出弹窗 -->
+<div id="exportModal" class="modal" style="display:none">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>导出数据</h2>
+      <button id="closeModal" class="close-btn">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="tab active" data-tab="json">JSON 格式</button>
+      <button class="tab" data-tab="text">文本格式</button>
+      <button class="tab" data-tab="table">表格预览</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="exportOutput" readonly></textarea>
+    </div>
+    <div class="modal-footer">
+      <button id="copyBtn" class="btn-primary">复制到剪贴板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+const state = {
+  mode: 'cage',
+  grid: [],
+  cages: new Map(),
+  nextCageId: 1,
+  colorIndex: 0,
+  selectedCells: new Set(),
+  activeCell: { r: 0, c: 0 },
+  sumBuffer: '',
+  isDragging: false,
+  dragAddMode: true,
+};
+
+const CAGE_COLORS = [
+  '#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6',
+  '#1abc9c','#e67e22','#34495e','#e91e63','#00bcd4',
+  '#8bc34a','#ff9800','#795548','#607d8b','#cddc39',
+  '#ff5722','#3f51b5','#009688','#ffca28','#d81b60',
+  '#5c6bc0','#66bb6a','#ef5350','#26c6da','#ff7043',
+  '#ab47bc','#5db4d4','#aacd49','#e8a13a','#6d9779',
+];
+
+function getNextColor() {
+  return CAGE_COLORS[state.colorIndex++ % CAGE_COLORS.length];
+}
+
+function createGrid() {
+  const g = [];
+  for (let r = 0; r < 9; r++) {
+    g[r] = [];
+    for (let c = 0; c < 9; c++) g[r][c] = { given: 0, cageId: null };
+  }
+  return g;
+}
+
+// ============ DOM ============
+const $ = id => document.getElementById(id);
+const gridEl = $('sudokuGrid');
+const cellEls = [];
+
+// ============ INIT ============
+function init() {
+  state.grid = createGrid();
+  buildGridDOM();
+  attachEvents();
+  loadFromStorage();
+  render();
+}
+
+function buildGridDOM() {
+  gridEl.innerHTML = '';
+  cellEls.length = 0;
+  for (let r = 0; r < 9; r++) {
+    cellEls[r] = [];
+    for (let c = 0; c < 9; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      if (c === 2 || c === 5) cell.classList.add('box-right');
+      if (r === 2 || r === 5) cell.classList.add('box-bottom');
+      gridEl.appendChild(cell);
+      cellEls[r][c] = cell;
+    }
+  }
+}
+
+// attachEvents 仅为占位（原版无独立函数，事件在下方直接绑定）
+function attachEvents() {}
+
+// ============ RENDER ============
+function render() {
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cell = cellEls[r][c];
+      const data = state.grid[r][c];
+      const key = r + ',' + c;
+
+      cell.style.backgroundColor = '';
+      cell.style.boxShadow = '';
+      cell.innerHTML = '';
+      cell.classList.remove('selected', 'active');
+
+      // Cage coloring & borders
+      if (data.cageId !== null && state.cages.has(data.cageId)) {
+        const cage = state.cages.get(data.cageId);
+        cell.style.backgroundColor = hexToRgba(cage.color, 0.13);
+
+        const shadows = [];
+        if (r === 0 || state.grid[r-1][c].cageId !== data.cageId) shadows.push('inset 0 3px 0 ' + cage.color);
+        if (r === 8 || state.grid[r+1][c].cageId !== data.cageId) shadows.push('inset 0 -3px 0 ' + cage.color);
+        if (c === 0 || state.grid[r][c-1].cageId !== data.cageId) shadows.push('inset 3px 0 0 ' + cage.color);
+        if (c === 8 || state.grid[r][c+1].cageId !== data.cageId) shadows.push('inset -3px 0 0 ' + cage.color);
+        if (shadows.length) cell.style.boxShadow = shadows.join(', ');
+
+        if (isCageTopLeft(cage, r, c)) {
+          const lbl = document.createElement('span');
+          lbl.className = 'cage-sum';
+          lbl.textContent = cage.sum;
+          cell.appendChild(lbl);
+        }
+      }
+
+      // Given number
+      if (data.given > 0) {
+        const num = document.createElement('span');
+        num.className = 'given-number';
+        num.textContent = data.given;
+        cell.appendChild(num);
+      }
+
+      // Selection / active
+      if (state.selectedCells.has(key)) cell.classList.add('selected');
+      if (state.activeCell.r === r && state.activeCell.c === c) cell.classList.add('active');
+    }
+  }
+  updateInfoPanel();
+  updateCageList();
+  saveToStorage();
+}
+
+function isCageTopLeft(cage, r, c) {
+  for (const k of cage.cells) {
+    const [cr, cc] = k.split(',').map(Number);
+    if (cr < r || (cr === r && cc < c)) return false;
+  }
+  return true;
+}
+
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ============ SELECTION ============
+function selectSingle(r, c) {
+  state.selectedCells.clear();
+  state.selectedCells.add(r + ',' + c);
+  state.activeCell = { r, c };
+  state.sumBuffer = '';
+  render();
+}
+function toggleCell(r, c) {
+  const k = r + ',' + c;
+  if (state.selectedCells.has(k)) state.selectedCells.delete(k);
+  else state.selectedCells.add(k);
+  state.activeCell = { r, c };
+  state.sumBuffer = '';
+  render();
+}
+function paintCell(r, c) {
+  const k = r + ',' + c;
+  if (state.dragAddMode) {
+    if (!state.selectedCells.has(k)) { state.selectedCells.add(k); state.activeCell={r,c}; render(); }
+  } else {
+    if (state.selectedCells.has(k)) { state.selectedCells.delete(k); render(); }
+  }
+}
+function clearSelection() {
+  state.selectedCells.clear();
+  state.sumBuffer = '';
+  render();
+}
+function moveActive(dr, dc, extend) {
+  const nr = Math.max(0, Math.min(8, state.activeCell.r + dr));
+  const nc = Math.max(0, Math.min(8, state.activeCell.c + dc));
+  if (!extend) state.selectedCells.clear();
+  state.selectedCells.add(nr + ',' + nc);
+  state.activeCell = { r: nr, c: nc };
+  state.sumBuffer = '';
+  render();
+}
+function selectCage(cageId) {
+  const cage = state.cages.get(cageId);
+  if (!cage) return;
+  state.selectedCells = new Set(cage.cells);
+  state.sumBuffer = String(cage.sum);
+  render();
+}
+
+// ============ CAGE MANAGEMENT ============
+function createCage() {
+  if (state.selectedCells.size === 0) { toast('请先选择格子'); return; }
+  if (!state.sumBuffer) { toast('请输入和值（数字键）'); return; }
+  const sum = parseInt(state.sumBuffer);
+  if (isNaN(sum) || sum < 1 || sum > 45) { toast('和值需在 1-45 之间'); return; }
+
+  // Validation
+  const n = state.selectedCells.size;
+  const minSum = n * (n + 1) / 2;
+  const maxSum = n * (19 - n) / 2;
+  if (sum < minSum || sum > maxSum) {
+    if (!confirm(`${n}格笼子的合法和值范围是 ${minSum}-${maxSum}，当前 ${sum} 超出范围。\n仍要创建吗？`)) return;
+  }
+
+  // Remove selected cells from existing cages
+  for (const k of state.selectedCells) {
+    const [r, c] = k.split(',').map(Number);
+    const oldId = state.grid[r][c].cageId;
+    if (oldId !== null) {
+      const old = state.cages.get(oldId);
+      if (old) {
+        old.cells.delete(k);
+        if (old.cells.size === 0) state.cages.delete(oldId);
+      }
+    }
+  }
+
+  // Create
+  const id = state.nextCageId++;
+  const color = getNextColor();
+  const cage = { id, cells: new Set(state.selectedCells), sum, color };
+  state.cages.set(id, cage);
+  for (const k of state.selectedCells) {
+    const [r, c] = k.split(',').map(Number);
+    state.grid[r][c].cageId = id;
+  }
+  state.selectedCells.clear();
+  state.sumBuffer = '';
+  render();
+  toast(`笼子 #${id} 已创建 · 和=${sum} · ${n}格`);
+}
+
+function deleteCage(id) {
+  const cage = state.cages.get(id);
+  if (!cage) return;
+  for (const k of cage.cells) {
+    const [r, c] = k.split(',').map(Number);
+    state.grid[r][c].cageId = null;
+  }
+  state.cages.delete(id);
+  render();
+  toast(`笼子 #${id} 已删除`);
+}
+
+function deleteSelectedCages() {
+  const toDel = new Set();
+  for (const k of state.selectedCells) {
+    const [r, c] = k.split(',').map(Number);
+    if (state.grid[r][c].cageId !== null) toDel.add(state.grid[r][c].cageId);
+  }
+  if (toDel.size === 0) { toast('选中的格子不在任何笼子中'); return; }
+  toDel.forEach(id => deleteCage(id));
+}
+
+// ============ GIVEN NUMBERS ============
+function setGiven(r, c, n) {
+  state.grid[r][c].given = n;
+  render();
+}
+function clearGiven(r, c) {
+  state.grid[r][c].given = 0;
+  render();
+}
+
+// ============ MOUSE EVENTS ============
+gridEl.addEventListener('mousedown', e => {
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  e.preventDefault();
+  const r = +cell.dataset.row, c = +cell.dataset.col;
+  state.isDragging = true;
+  if (e.ctrlKey || e.metaKey) {
+    const had = state.selectedCells.has(r + ',' + c);
+    toggleCell(r, c);
+    state.dragAddMode = state.selectedCells.has(r + ',' + c);
+  } else {
+    state.selectedCells.clear();
+    state.selectedCells.add(r + ',' + c);
+    state.activeCell = { r, c };
+    state.sumBuffer = '';
+    state.dragAddMode = true;
+    render();
+  }
+});
+
+gridEl.addEventListener('mouseover', e => {
+  if (!state.isDragging) return;
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  paintCell(+cell.dataset.row, +cell.dataset.col);
+});
+
+document.addEventListener('mouseup', () => { state.isDragging = false; });
+
+gridEl.addEventListener('dblclick', e => {
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  const r = +cell.dataset.row, c = +cell.dataset.col;
+  if (state.grid[r][c].cageId !== null) selectCage(state.grid[r][c].cageId);
+});
+
+// ============ KEYBOARD ============
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const key = e.key;
+  if (key === 'Escape') { e.preventDefault(); clearSelection(); return; }
+  if (state.mode === 'cage') handleCageKey(e, key);
+  else handleNumberKey(e, key);
+});
+
+function handleCageKey(e, key) {
+  switch (key) {
+    case 'ArrowUp':    e.preventDefault(); moveActive(-1, 0, e.shiftKey); break;
+    case 'ArrowDown':  e.preventDefault(); moveActive(1, 0, e.shiftKey); break;
+    case 'ArrowLeft':  e.preventDefault(); moveActive(0, -1, e.shiftKey); break;
+    case 'ArrowRight': e.preventDefault(); moveActive(0, 1, e.shiftKey); break;
+    case 'Enter':      e.preventDefault(); createCage(); break;
+    case 'Delete':
+    case 'Backspace':
+      e.preventDefault();
+      if (state.sumBuffer) { state.sumBuffer = state.sumBuffer.slice(0, -1); render(); }
+      else if (state.selectedCells.size > 0) deleteSelectedCages();
+      break;
+    case ' ': e.preventDefault(); toggleCell(state.activeCell.r, state.activeCell.c); break;
+    default:
+      if (/^[0-9]$/.test(key) && state.selectedCells.size > 0) {
+        e.preventDefault();
+        let nb = state.sumBuffer + key;
+        if (parseInt(nb) > 45) nb = key;
+        state.sumBuffer = nb;
+        render();
+      }
+      break;
+  }
+}
+
+function handleNumberKey(e, key) {
+  switch (key) {
+    case 'ArrowUp':    e.preventDefault(); moveActive(-1, 0, false); break;
+    case 'ArrowDown':  e.preventDefault(); moveActive(1, 0, false); break;
+    case 'ArrowLeft':  e.preventDefault(); moveActive(0, -1, false); break;
+    case 'ArrowRight': e.preventDefault(); moveActive(0, 1, false); break;
+    case 'Delete': case 'Backspace': case '0':
+      e.preventDefault(); clearGiven(state.activeCell.r, state.activeCell.c); break;
+    default:
+      if (/^[1-9]$/.test(key)) {
+        e.preventDefault();
+        setGiven(state.activeCell.r, state.activeCell.c, parseInt(key));
+      }
+      break;
+  }
+}
+
+// ============ MODE SWITCH ============
+$('modeCageBtn').onclick = () => switchMode('cage');
+$('modeNumberBtn').onclick = () => switchMode('number');
+function switchMode(m) {
+  state.mode = m;
+  state.selectedCells.clear();
+  state.sumBuffer = '';
+  $('modeCageBtn').classList.toggle('active', m === 'cage');
+  $('modeNumberBtn').classList.toggle('active', m === 'number');
+  const ind = $('modeIndicator');
+  ind.textContent = m === 'cage' ? '笼子模式' : '数字模式';
+  ind.className = 'mode-badge ' + m;
+  render();
+}
+
+// ============ INFO PANEL ============
+function updateInfoPanel() {
+  $('selCount').textContent = state.selectedCells.size;
+  $('sumDisplay').textContent = state.sumBuffer || '—';
+  $('confirmCageBtn').disabled = state.selectedCells.size === 0 || !state.sumBuffer;
+  let hasCage = false;
+  for (const k of state.selectedCells) {
+    const [r, c] = k.split(',').map(Number);
+    if (state.grid[r][c].cageId !== null) { hasCage = true; break; }
+  }
+  $('deleteCageBtn').disabled = !hasCage;
+}
+
+// ============ CAGE LIST ============
+function updateCageList() {
+  const list = $('cageList');
+  $('cageCount').textContent = state.cages.size;
+  if (state.cages.size === 0) {
+    list.innerHTML = '<div class="empty-hint">尚无笼子 — 选择格子并输入和值后按 Enter 创建</div>';
+    return;
+  }
+  list.innerHTML = '';
+  [...state.cages.values()].sort((a, b) => a.id - b.id).forEach(cage => {
+    const item = document.createElement('div');
+    item.className = 'cage-item';
+    const cells = [...cage.cells].map(k => {
+      const [r, c] = k.split(',').map(Number);
+      return 'R' + (r+1) + 'C' + (c+1);
+    }).join(' ');
+    item.innerHTML = `<span class="cage-color" style="background:${cage.color}"></span>` +
+      `<span class="cage-id">#${cage.id}</span>` +
+      `<span class="cage-sum-lbl">和=${cage.sum}</span>` +
+      `<span class="cage-cells">${cage.cells.size}格: ${cells}</span>` +
+      `<button class="cage-del" data-id="${cage.id}">✕</button>`;
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('cage-del')) { e.stopPropagation(); deleteCage(cage.id); }
+      else selectCage(cage.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+// ============ BUTTONS ============
+$('confirmCageBtn').onclick = createCage;
+$('deleteCageBtn').onclick = deleteSelectedCages;
+
+$('clearBtn').onclick = () => {
+  if (!confirm('确定要清空所有笼子和已知数字吗？此操作不可撤销。')) return;
+  state.grid = createGrid();
+  state.cages.clear();
+  state.nextCageId = 1;
+  state.colorIndex = 0;
+  state.selectedCells.clear();
+  state.sumBuffer = '';
+  render();
+  toast('已清空全部');
+};
+
+// ============ EXPORT ============
+$('exportBtn').onclick = () => {
+  $('exportModal').style.display = 'flex';
+  exportCurrent('json');
+};
+$('closeModal').onclick = () => { $('exportModal').style.display = 'none'; };
+$('exportModal').addEventListener('click', e => {
+  if (e.target === $('exportModal')) $('exportModal').style.display = 'none';
+});
+document.querySelectorAll('.modal-tabs .tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.modal-tabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    exportCurrent(t.dataset.tab);
+  };
+});
+
+function exportCurrent(fmt) {
+  $('exportOutput').value = exportData(fmt);
+}
+
+function exportData(fmt) {
+  // Collect givens
+  const givens = {};
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (state.grid[r][c].given > 0) givens[r + ',' + c] = state.grid[r][c].given;
+
+  // Collect cages
+  const cages = [];
+  for (const cage of state.cages.values()) {
+    const cells = [...cage.cells].map(k => k.split(',').map(Number));
+    cells.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    cages.push({ id: cage.id, sum: cage.sum, cells });
+  }
+
+  if (fmt === 'json') {
+    // Standard 9x9 givens grid + cages
+    const grid9 = [];
+    for (let r = 0; r < 9; r++) {
+      grid9[r] = [];
+      for (let c = 0; c < 9; c++) grid9[r][c] = state.grid[r][c].given;
+    }
+    return JSON.stringify({
+      givens: grid9,
+      cages: cages.map(c => ({ sum: c.sum, cells: c.cells }))
+    }, null, 2);
+  }
+
+  if (fmt === 'text') {
+    let t = '=== Killer Sudoku ===\n\n';
+    t += `Cages (${cages.length}):\n`;
+    for (const c of cages) {
+      const cs = c.cells.map(([r, cc]) => 'R' + (r+1) + 'C' + (cc+1)).join(' ');
+      t += `  #${c.id}  sum=${c.sum}  (${c.cells.length} cells)  ${cs}\n`;
+    }
+    t += '\nGivens:\n  ';
+    const gs = Object.entries(givens).map(([k, v]) => {
+      const [r, c] = k.split(',').map(Number);
+      return 'R' + (r+1) + 'C' + (c+1) + '=' + v;
+    });
+    t += gs.length ? gs.join('  ') : '(none)';
+    t += '\n';
+    return t;
+  }
+
+  if (fmt === 'table') {
+    // Build a 9x9 display grid
+    const cellSum = {};
+    const cellCage = {};
+    for (const cage of state.cages.values()) {
+      for (const k of cage.cells) {
+        cellCage[k] = cage.id;
+        const [r, c] = k.split(',').map(Number);
+        if (isCageTopLeft(cage, r, c)) cellSum[k] = cage.sum;
+      }
+    }
+    let t = '';
+    const sep = '   +-----+-----+-----+-----+-----+-----+-----+-----+-----+\n';
+    t += '     C1   C2   C3   C4   C5   C6   C7   C8   C9\n';
+    t += sep;
+    for (let r = 0; r < 9; r++) {
+      t += 'R' + (r+1) + ' ';
+      for (let c = 0; c < 9; c++) {
+        const k = r + ',' + c;
+        const g = state.grid[r][c].given;
+        const s = cellSum[k];
+        let content = '';
+        if (g > 0) content = String(g).padStart(2, ' ');
+        else if (s !== undefined) content = String(s).padStart(2, ' ');
+        else content = ' ·';
+        t += '| ' + content + '  ';
+      }
+      t += '|\n';
+      if (r === 2 || r === 5 || r === 8) t += sep;
+      else if (r < 8) t += '   |     |     |     |     |     |     |     |     |     |\n';
+    }
+    t += '\nCages: ' + cages.length + ' | Givens: ' + Object.keys(givens).length + '\n';
+    return t;
+  }
+  return '';
+}
+
+$('copyBtn').onclick = () => {
+  const ta = $('exportOutput');
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('已复制到剪贴板');
+  } catch(e) {
+    toast('复制失败，请手动选择复制');
+  }
+};
+
+// ============ IMAGE ============
+$('imgInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = $('imgDisplay');
+    img.onload = () => {
+      $('imgZoom').dispatchEvent(new Event('input'));
+    };
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    $('imgPlaceholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+});
+
+$('imgZoom').addEventListener('input', e => {
+  const zoom = e.target.value;
+  $('zoomVal').textContent = zoom + '%';
+  const img = $('imgDisplay');
+  if (img.naturalWidth) {
+    img.style.width = (img.naturalWidth * zoom / 100) + 'px';
+  }
+});
+
+// ============ LAYOUT ============
+$('layoutBtn').onclick = () => {
+  const main = $('mainContent');
+  if (main.classList.contains('side-by-side')) {
+    main.classList.remove('side-by-side');
+    $('layoutBtn').textContent = '切换布局';
+  } else {
+    main.classList.add('side-by-side');
+    $('layoutBtn').textContent = '上下布局';
+  }
+};
+
+// ============ STORAGE ============
+function saveToStorage() {
+  try {
+    const data = {
+      grid: state.grid,
+      cages: [...state.cages.values()].map(c => ({
+        id: c.id, cells: [...c.cells], sum: c.sum, color: c.color
+      })),
+      nextCageId: state.nextCageId,
+      colorIndex: state.colorIndex,
+    };
+    localStorage.setItem('killerSudoku', JSON.stringify(data));
+  } catch(e) {}
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem('killerSudoku');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.grid) state.grid = data.grid;
+    if (data.cages) {
+      state.cages = new Map();
+      for (const c of data.cages) {
+        state.cages.set(c.id, { id: c.id, cells: new Set(c.cells), sum: c.sum, color: c.color });
+      }
+    }
+    state.nextCageId = data.nextCageId || 1;
+    state.colorIndex = data.colorIndex || 0;
+  } catch(e) {}
+}
+
+// ============ TOAST ============
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 2000);
+}
+
+// ============ START ============
+init();
+</script>
+</body>
+</html>
