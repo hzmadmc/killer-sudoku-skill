@@ -2,6 +2,8 @@
 
 **GitHub 上现有的 killer sudoku 仓库全是"程序求解器"——代码自己暴力算答案；这个是 AI Agent Skill：教 AI 像人一样推理解题**（笼子组合、45法则、区域拆分），并且只交付人类能跟着抄的解题过程，不甩机器答案。
 
+![杀手数独盘面示例：虚线框为笼子，左上角为笼子和值](assets/board-example.jpg)
+
 ## 能做什么
 
 | 能力 | 说明 |
@@ -13,9 +15,20 @@
 | 大白话交付 | 最终输出"照抄版"：在哪写几 + 一句话原因，连锁数字直接列格子=数字 |
 | 截图录题 | 附带网页录入工具：导入题目截图，鼠标拖选建笼子，导出标准 JSON |
 
+## 快速上手（自带示例题）
+
+不用自己找题，`examples/` 里有一道真实题目和验过真的完整步骤单：
+
+```bash
+python scripts/human_solve.py examples/killer4.json                        # 求解，生成编号步骤单
+python scripts/replay_check.py examples/killer4.json examples/killer4_steps.txt   # 步骤验真
+```
+
+预期结果：139 步、0 错误，解盘在 `examples/killer4_steps.txt` 末尾。
+
 ## 安装
 
-把整个 `killer-sudoku/` 文件夹放进 AI 助手的技能目录即可：
+clone 本仓库（或下载 zip 解压），把文件夹重命名为 `killer-sudoku/`，放进 AI 助手的技能目录即可：
 
 - **WorkBuddy**：`~/.workbuddy/skills/killer-sudoku/`
 - **Claude Code 等兼容 SKILL.md 格式的助手**：放入对应的 skills 目录（本技能的 SKILL.md 采用通用 frontmatter 格式，`agent_created` 为 WorkBuddy 扩展字段，其他平台可忽略或删除）
@@ -40,6 +53,10 @@ killer-sudoku/
 ├── references/
 │   ├── output-format.md  # 输出规范：中文记号、照抄版格式、协作模式
 │   └── techniques.md     # 技巧库：45法则/幽灵笼子/笼拆分等技巧与实现坑
+├── examples/             # 自带示例题 + 已验真的完整步骤单
+│   ├── killer4.json      # 题目（givens 全 0 + 27 个笼子，总和 405）
+│   ├── killer4_steps.txt # 完整编号步骤单（139 步，replay_check 验真 0 错误）
+│   └── README.md         # 示例说明
 └── assets/
     └── killer-sudoku-input.html  # 截图录入工具（浏览器直接打开）
 ```
